@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    // "admin" is a custom claim set only by the server-side script (scripts/set-admin.mjs).
+    // Students cannot set it from the browser or by editing any document.
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    // ---- Student profile: users/{uid} ----
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      // Exactly these three fields. No role / admin field can ever be written.
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['name', 'email', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 200
+        && request.resource.data.createdAt == request.time;
+
+      // A student may only change their own display name.
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80;
+
+      allow delete: if false;
+
+      // ---- Quiz attempts: users/{uid}/quizAttempts/{attemptId} ----
+      match /quizAttempts/{attemptId} {
+        allow read: if isOwner(uid) || isAdmin();
+
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(
+               ['mode', 'score', 'total', 'percentage', 'correct', 'incorrect', 'unanswered', 'completedAt'])
+          && request.resource.data.mode in ['practice', 'hard']
+          && request.resource.data.score is int
+          && request.resource.data.total is int
+          && request.resource.data.correct is int
+          && request.resource.data.incorrect is int
+          && request.resource.data.unanswered is int
+          && request.resource.data.percentage is number
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= request.resource.data.total
+          && request.resource.data.total <= 1000
+          && request.resource.data.percentage >= 0
+          && request.resource.data.percentage <= 100
+          && request.resource.data.completedAt == request.time;
+
+        // Attempts are permanent records.
+        allow update, delete: if false;
+      }
+    }
+
+    // Lets the admin dashboard list every student's attempts in one query.
+    match /{path=**}/quizAttempts/{attemptId} {
+      allow read: if isAdmin();
+    }
+  }
+}
