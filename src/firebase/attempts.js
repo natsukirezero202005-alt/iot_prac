@@ -31,7 +31,7 @@ export async function saveAttempt(
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => {
       reject(new Error('Firestore save timed out. Please check your internet connection.'));
-    }, 10000);
+    }, 1000);
   });
 
   return Promise.race([savePromise, timeoutPromise]);
