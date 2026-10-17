@@ -60,8 +60,8 @@ export function AuthProvider({ children }) {
           password
         );
 
-        // Make sure every authenticated student has
-        // a users/{uid} profile document.
+        // Make sure every authenticated student has a
+        // users/{uid} profile document.
         const userRef = doc(db, 'users', credential.user.uid);
         const userSnap = await getDoc(userRef);
 
