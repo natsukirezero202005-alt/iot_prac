@@ -1,18 +1,8 @@
-import {
-  addDoc,
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from './config';
-
 export async function saveAttempt(
   uid,
   { mode, score, total, percentage, correct, incorrect, unanswered }
 ) {
-  return addDoc(
+  const savePromise = addDoc(
     collection(db, 'users', uid, 'quizAttempts'),
     {
       mode,
@@ -25,18 +15,12 @@ export async function saveAttempt(
       completedAt: serverTimestamp(),
     }
   );
-}
 
-export async function getMyAttempts(uid) {
-  const q = query(
-    collection(db, uid, 'quizAttempts'),
-    orderBy('completedAt', 'desc')
-  );
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error('Firestore request timed out after 10 seconds.'));
+    }, 5000);
+  });
 
-  const snapshot = await getDocs(q);
-
-  return snapshot.docs.map((d) => ({
-    id: d.id,
-    ...d.data(),
-  }));
+  return Promise.race([savePromise, timeoutPromise]);
 }
