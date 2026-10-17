@@ -19,7 +19,7 @@ export async function saveAttempt(
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => {
       reject(new Error('Firestore request timed out after 10 seconds.'));
-    }, 5000);
+    }, 10000);
   });
 
   return Promise.race([savePromise, timeoutPromise]);
